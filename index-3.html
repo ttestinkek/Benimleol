@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Birlikte Bir Yolculuk</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#090610;color:#fff;font-family:Georgia,serif}
+#hud{position:fixed;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;padding:24px;box-sizing:border-box}
+#title{text-align:center;color:#f5d9ff;text-shadow:0 0 18px #bd69ff;letter-spacing:3px;font-size:clamp(16px,2.4vw,27px)}
+#hint{align-self:center;background:#140d20cc;border:1px solid #9f67bb88;border-radius:18px;padding:10px 16px;color:#eadcf4;font:13px Arial;backdrop-filter:blur(8px)}
+#start{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(ellipse,#241333dd,#08050eee);z-index:5}
+.panel{text-align:center;max-width:520px;padding:35px}
+.panel h1{font-weight:normal;font-size:clamp(30px,6vw,54px);color:#f4d8ff;text-shadow:0 0 22px #a64bff}
+.panel p{font:15px/1.7 Arial;color:#ddd}
+button{border:1px solid #d7a8ff;background:linear-gradient(120deg,#612d8c,#a34fd1);color:white;padding:14px 28px;border-radius:30px;font-size:15px;cursor:pointer}
+#final{display:none;position:fixed;inset:0;z-index:4;background:#090510dd;place-items:center;text-align:center}
+#final h2{font-size:clamp(28px,6vw,52px);font-weight:normal;color:#f3d6ff;text-shadow:0 0 24px #b75cff}
+#final p{font:16px Arial;color:#fff}
+</style>
+</head>
+<body>
+<div id="start"><div class="panel"><h1>Birlikte Bir Yolculuk</h1><p>Gül bahçesindeki taş köprüyü geç, romantik yolda ilerle ve mor ışıklarla çevrili kapıya ulaş.</p><button id="begin">Yolculuğa Başla</button></div></div>
+<div id="hud"><div id="title">✦ BİR MASALIN BAŞLANGICI ✦</div><div id="hint">WASD / Ok tuşları: Yürü · Fare: Etrafına bak · Mobil: Ekrana dokunup sürükle</div></div>
+<div id="final"><div><h2>Benimle çıkar mısın?</h2><p>Bu yolculuğun en güzel kısmı, seninle başlaması. 💜</p><button onclick="location.reload()">Baştan Oyna</button></div></div>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {PointerLockControls} from 'three/addons/controls/PointerLockControls.js';
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x090610); scene.fog=new THREE.FogExp2(0x10091b,.035);
+const camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,.1,150); camera.position.set(0,1.65,6.5);
+const renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setSize(innerWidth,innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.25; document.body.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xc9b7ff,0x17101e,2));
+const moon=new THREE.DirectionalLight(0xe6d9ff,2.2); moon.position.set(-4,9,5); scene.add(moon);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(100,100),new THREE.MeshStandardMaterial({color:0x100d18,roughness:1}));ground.rotation.x=-Math.PI/2;ground.position.y=-.08;scene.add(ground);
+const controls=new PointerLockControls(camera,renderer.domElement); scene.add(controls.getObject());
+const loader=new GLTFLoader(); const models=[];
+function addGlow(x,y,z,color,intensity=3,dist=7){const l=new THREE.PointLight(color,intensity,dist);l.position.set(x,y,z);scene.add(l)}
+async function loadModel(file,pos,rot,scale){
+  try {
+    const response=await fetch(file);
+    if(!response.ok) throw new Error('Model yüklenemedi: '+file);
+    const compressed=await response.arrayBuffer();
+    const stream=new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'));
+    const buffer=await new Response(stream).arrayBuffer();
+    return await new Promise((resolve,reject)=>loader.parse(buffer,'',g=>{
+      const o=g.scene;o.position.set(...pos);o.rotation.set(...rot);o.scale.setScalar(scale);scene.add(o);models.push(o);resolve(o)
+    },reject));
+  } catch(error){ console.error(error); alert('3D model yüklenemedi: '+file+' — dosyaların HTML ile aynı GitHub deposunda olduğundan emin ol.'); throw error; }
+}
+await Promise.all([
+ loadModel('kopru.glb.gz',[0,0,2.2],[0,Math.PI/2,0],2.4),
+ loadModel('gul_yolu.glb.gz',[0,0,-.1],[0,0,0],2.5),
+ loadModel('portal_kapisi.glb.gz',[0,0,-3.0],[0,0,0],1.25)
+]);
+ // Portal plane and glowing frame in the center of the arch opening
+const portalGroup=new THREE.Group();portalGroup.position.set(0,1.02,-3.42);scene.add(portalGroup);
+const disc=new THREE.Mesh(new THREE.CircleGeometry(.53,64),new THREE.MeshBasicMaterial({color:0x7020c8,transparent:true,opacity:.55,side:THREE.DoubleSide,depthWrite:false}));portalGroup.add(disc);
+const ring=new THREE.Mesh(new THREE.TorusGeometry(.56,.055,16,96),new THREE.MeshStandardMaterial({color:0xd49aff,emissive:0x9b28ff,emissiveIntensity:3,metalness:.25,roughness:.25}));portalGroup.add(ring);
+const inner=new THREE.Mesh(new THREE.TorusGeometry(.43,.018,10,96),new THREE.MeshBasicMaterial({color:0xe8c5ff}));portalGroup.add(inner);
+addGlow(0,1.3,-3.6,0xa52bff,5,12);
+for(let i=0;i<24;i++){let a=Math.random()*Math.PI*2,r=.7+Math.random()*1.8;let p=new THREE.Mesh(new THREE.SphereGeometry(.018+Math.random()*.025,8,8),new THREE.MeshBasicMaterial({color:0xe5b5ff}));p.position.set(Math.cos(a)*r,.3+Math.random()*2,Math.sin(a)*r-1);scene.add(p)}
+for(let z=5;z>-7;z-=2.2){addGlow(-1.5,.8,z,0xffc4e9,1.2,4);addGlow(1.5,.8,z,0xb77aff,1.2,4)}
+const keys={};addEventListener('keydown',e=>keys[e.code]=true);addEventListener('keyup',e=>keys[e.code]=false);
+let started=false,done=false;document.getElementById('begin').onclick=()=>{started=true;document.getElementById('start').style.display='none';controls.lock()};
+renderer.domElement.addEventListener('click',()=>{if(started&&!controls.isLocked)controls.lock()});
+let touchX=null,touchY=null;
+renderer.domElement.addEventListener('touchstart',e=>{touchX=e.touches[0].clientX;touchY=e.touches[0].clientY},{passive:true});
+renderer.domElement.addEventListener('touchmove',e=>{if(touchX===null)return;let t=e.touches[0];camera.rotation.order='YXZ';camera.rotation.y-=(t.clientX-touchX)*.004;camera.rotation.x-=(t.clientY-touchY)*.004;camera.rotation.x=Math.max(-1.2,Math.min(1.2,camera.rotation.x));touchX=t.clientX;touchY=t.clientY},{passive:true});
+renderer.domElement.addEventListener('touchend',()=>{touchX=null;touchY=null});
+const clock=new THREE.Clock();
+function animate(){requestAnimationFrame(animate);let dt=Math.min(clock.getDelta(),.05);if(started&&!done){let f=0,s=0;if(keys.KeyW||keys.ArrowUp)f=1;if(keys.KeyS||keys.ArrowDown)f=-1;if(keys.KeyA||keys.ArrowLeft)s=-1;if(keys.KeyD||keys.ArrowRight)s=1;const speed=2.3*dt;if(controls.isLocked){controls.moveForward(f*speed);controls.moveRight(s*speed)}else{camera.position.z-=f*speed;camera.position.x+=s*speed}camera.position.y=1.65; if(camera.position.z < -2.35){done=true;document.exitPointerLock?.();document.getElementById('final').style.display='grid'}}
+portalGroup.rotation.z=Math.sin(clock.elapsedTime*.7)*.035;portalGroup.scale.setScalar(1+Math.sin(clock.elapsedTime*2)*.025);renderer.render(scene,camera)}
+animate();addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script>
+</body></html>
